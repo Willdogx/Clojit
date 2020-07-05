@@ -39,7 +39,10 @@
      (proxy [MouseAdapter] []
        (mousePressed [e]
          (when (.isPopupTrigger e)
-           (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
+           (.show popup-menu (.getComponent e) (.getX e) (.getY e))))
+       (mouseReleased [e]
+                     (when (.isPopupTrigger e)
+                       (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
 
 (declare update-frame-content)
 (defn make-status-header [pane]
