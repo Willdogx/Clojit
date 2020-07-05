@@ -46,6 +46,7 @@
   (let [repo-path (:repository-path @config)
         staged-files (git/get-staged-files repo-path)
         untracked-files (git/get-untracked-files repo-path)
+        modified-files (git/get-modified-files repo-path)
         v-margin (Box/createRigidArea (Dimension. 0 10))]
     (let [label (JLabel. (str "On branch: " (git/get-cur-branch repo-path)))]
       (.add pane (doto label
@@ -69,6 +70,25 @@
                   (.setAlignmentX Component/LEFT_ALIGNMENT)))
           (.add v-margin)
           (.add (doto (JScrollPane. staged-files-list)
+                  (.setAlignmentX Component/LEFT_ALIGNMENT))))))
+    (when modified-files
+      (let [label (JLabel. "Modified:")
+            modified-files-list (JList.)
+            popup-menu (JPopupMenu.)]
+        (doto popup-menu
+          (.add (doto (JMenuItem. "Stage")
+                  (.addActionListener (proxy [ActionListener] [] 
+                                        (actionPerformed [e]
+                                          (git/stage (.getSelectedValuesList modified-files-list) repo-path)
+                                          (update-frame-content (.getContentPane frame))))))))
+        (configure-files-list modified-files-list modified-files popup-menu)
+        (doto pane
+          (.add v-margin)
+          (.add (doto label
+                  (.setFont (.deriveFont (.getFont label) Font/BOLD))
+                  (.setAlignmentX Component/LEFT_ALIGNMENT)))
+          (.add v-margin)
+          (.add (doto (JScrollPane. modified-files-list)
                   (.setAlignmentX Component/LEFT_ALIGNMENT))))))
     (when untracked-files
       (let [label (JLabel. "Untracked:")
