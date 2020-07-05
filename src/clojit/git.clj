@@ -14,6 +14,9 @@
 (defn get-untracked-files [repo-path]
   (maybe-split-lines (:out (sh "git" "ls-files" "--others" "--exclude-standard" :dir repo-path))))
 
+(defn get-modified-files [repo-path]
+  (maybe-split-lines (:out (sh "git" "ls-files" "-m" :dir repo-path))))
+
 (defn get-cur-branch [repo-path]
   (:out (sh "git" "symbolic-ref" "--short" "HEAD" :dir repo-path)))
 
