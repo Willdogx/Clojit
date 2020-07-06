@@ -22,7 +22,6 @@
 (defn set-native-look-and-feel []
   (UIManager/setLookAndFeel (UIManager/getSystemLookAndFeelClassName)))
 
-
 ;; swing components
 (def repo-chooser (doto (JFileChooser.)
                     (.setFileSelectionMode JFileChooser/DIRECTORIES_ONLY)))
@@ -45,77 +44,64 @@
                        (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
 
 (declare update-frame-content)
-(defn make-status-header [pane]
-  (let [repo-path (:repository-path @config)
-        staged-files (git/get-staged-files repo-path)
-        untracked-files (git/get-untracked-files repo-path)
-        modified-files (git/get-modified-files repo-path)
-        v-margin (Box/createRigidArea (Dimension. 0 10))]
-    (let [label (JLabel. (str "On branch: " (git/get-cur-branch repo-path)))]
-      (.add pane (doto label
-                   (.setFont (.deriveFont (.getFont label) Font/BOLD))
-                   (.setAlignmentX Component/LEFT_ALIGNMENT))))
-    (when staged-files
-      (let [label (JLabel. "Staged:")
-            popup-menu (JPopupMenu.)
-            staged-files-list (JList.)]
+
+(defn add-status-header [pane repo-path]
+  (let [label (JLabel. (str "On branch: " (git/get-cur-branch repo-path)))]
+    (.add pane (doto label
+                 (.setFont (.deriveFont (.getFont label) Font/BOLD))
+                 (.setAlignmentX Component/LEFT_ALIGNMENT)))))
+
+(defn get-unstage-menuitem [list repo-path]
+  (doto (JMenuItem. "Unstage")
+    (.addActionListener (proxy [ActionListener] []
+                          (actionPerformed [e]
+                            (git/unstage (.getSelectedValuesList list) repo-path)
+                            (update-frame-content (.getContentPane frame)))))))
+
+(defn get-stage-menuitem [list repo-path]
+  (doto (JMenuItem. "Stage")
+    (.addActionListener (proxy [ActionListener] []
+                          (actionPerformed [e]
+                            (git/stage (.getSelectedValuesList list) repo-path)
+                            (update-frame-content (.getContentPane frame)))))))
+
+(defn get-status-values-by-type [type repo-path]
+  (let [list (JList.)]
+    (case type
+      staged {:files (git/get-staged-files repo-path)
+              :label (JLabel. "Staged:")
+              :list list
+              :popup-menu-item (get-unstage-menuitem list repo-path)}
+      modified {:files (git/get-modified-files repo-path)
+                :label (JLabel. "Modified:")
+                :list list
+                :popup-menu-item (get-stage-menuitem list repo-path)}
+      untracked {:files (git/get-untracked-files repo-path)
+                 :label (JLabel. "Untracked:")
+                 :list list
+                 :popup-menu-item (get-stage-menuitem list repo-path)})))
+
+(defn add-files-pane [pane type repo-path]
+  (let [{:keys [files label list popup-menu-item]} (get-status-values-by-type type repo-path)]
+    (when files
+      (let [popup-menu (JPopupMenu.)]
         (doto popup-menu
-          (.add (doto (JMenuItem. "Unstage")
-                  (.addActionListener (proxy [ActionListener] []
-                                        (actionPerformed [e]
-                                          (git/unstage (.getSelectedValuesList staged-files-list) repo-path)
-                                          (update-frame-content (.getContentPane frame))))))))
-        (configure-files-list staged-files-list staged-files popup-menu)
+          (.add popup-menu-item))
+        (configure-files-list list files popup-menu)
         (doto pane
-          (.add v-margin)
           (.add (doto label
                   (.setFont (.deriveFont (.getFont label) Font/BOLD))
                   (.setAlignmentX Component/LEFT_ALIGNMENT)))
-          (.add v-margin)
-          (.add (doto (JScrollPane. staged-files-list)
-                  (.setAlignmentX Component/LEFT_ALIGNMENT))))))
-    (when modified-files
-      (let [label (JLabel. "Modified:")
-            modified-files-list (JList.)
-            popup-menu (JPopupMenu.)]
-        (doto popup-menu
-          (.add (doto (JMenuItem. "Stage")
-                  (.addActionListener (proxy [ActionListener] [] 
-                                        (actionPerformed [e]
-                                          (git/stage (.getSelectedValuesList modified-files-list) repo-path)
-                                          (update-frame-content (.getContentPane frame))))))))
-        (configure-files-list modified-files-list modified-files popup-menu)
-        (doto pane
-          (.add v-margin)
-          (.add (doto label
-                  (.setFont (.deriveFont (.getFont label) Font/BOLD))
-                  (.setAlignmentX Component/LEFT_ALIGNMENT)))
-          (.add v-margin)
-          (.add (doto (JScrollPane. modified-files-list)
-                  (.setAlignmentX Component/LEFT_ALIGNMENT))))))
-    (when untracked-files
-      (let [label (JLabel. "Untracked:")
-            untracked-files-list (JList.)
-            popup-menu (JPopupMenu.)]
-        (doto popup-menu
-          (.add (doto (JMenuItem. "Stage")
-                  (.addActionListener (proxy [ActionListener] []
-                                        (actionPerformed [e]
-                                          (git/stage (.getSelectedValuesList untracked-files-list) repo-path)
-                                          (update-frame-content (.getContentPane frame))))))))
-        (configure-files-list untracked-files-list untracked-files popup-menu)
-        (doto pane
-          (.add v-margin)
-          (.add (doto label
-                  (.setFont (.deriveFont (.getFont label) Font/BOLD))
-                  (.setAlignmentX Component/LEFT_ALIGNMENT)))
-          (.add v-margin)
-          (.add (doto (JScrollPane. untracked-files-list)
+          (.add (doto (JScrollPane. list)
                   (.setAlignmentX Component/LEFT_ALIGNMENT))))))))
 
+(defn add-status-body [pane repo-path]
+  (doseq [type ['staged 'modified 'untracked]]
+    (add-files-pane pane type repo-path)))
+
 (defn make-git-status-component [pane]
-  (doto pane
-    (make-status-header)))
+  ((juxt add-status-header
+         add-status-body) pane (:repository-path @config)))
 
 (defn make-config-repo-message [pane]
   (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository...")
@@ -148,10 +134,17 @@
                                       (update-frame-content (.getContentPane frame)))
                                   (println "Directory " repo-path " is not a git repository!")))))))))
 
+(defn menu-item-update-status []
+  (doto (JMenuItem. "Update status")
+    (.addActionListener (proxy [ActionListener] []
+                          (actionPerformed [e]
+                            (update-frame-content (.getContentPane frame)))))))
+
 (defn menu-bar []
   (doto (JMenuBar.)
     (.add (doto (JMenu. "Menu")
-            (.add (menu-item-open-repository))))))
+            (.add (menu-item-open-repository))
+            (.add (menu-item-update-status))))))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
