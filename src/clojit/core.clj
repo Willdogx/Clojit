@@ -3,9 +3,10 @@
   (:require [clojure.java.io :refer [file]])
   (:require clojure.edn)
   (:import [javax.swing JMenu JMenuBar JMenuItem JFrame UIManager JLabel JList JFileChooser
-            BoxLayout JScrollPane Box JPopupMenu SwingUtilities])
-  (:import [java.awt Component Font Color Dimension])
-  (:import [java.awt.event MouseAdapter ActionListener]))
+            JScrollPane JPopupMenu SwingUtilities JTextField])
+  (:import [java.awt Component Font Color BorderLayout])
+  (:import [java.awt.event MouseAdapter ActionListener])
+  (:import [net.miginfocom.swing MigLayout]))
 
 ;; config
 (def config-filename "config.edn")
@@ -29,11 +30,13 @@
 (set-native-look-and-feel)
 
 (def frame (JFrame. "Clojit"))
+(def pane (.getContentPane frame))
 
 (defn configure-files-list [jlist list-content popup-menu]
   (doto jlist
     (.setListData (into-array list-content))
     (.setAlignmentX Component/LEFT_ALIGNMENT)
+    #_(.setFixedCellHeight 1)
     (.addMouseListener
      (proxy [MouseAdapter] []
        (mousePressed [e]
@@ -46,24 +49,24 @@
 (declare update-frame-content)
 
 (defn add-status-header [pane repo-path]
-  (let [label (JLabel. (str "On branch: " (git/get-cur-branch repo-path)))]
+  (let [label (JLabel. (str "<html>Branch: <b>" (git/get-cur-branch repo-path) "</b> " (git/get-last-commit-message repo-path) "</html>"))]
     (.add pane (doto label
-                 (.setFont (.deriveFont (.getFont label) Font/BOLD))
-                 (.setAlignmentX Component/LEFT_ALIGNMENT)))))
+                 #_(.setFont (.deriveFont (.getFont label) Font/BOLD)))
+          "wrap")))
 
 (defn get-unstage-menuitem [list repo-path]
   (doto (JMenuItem. "Unstage")
     (.addActionListener (proxy [ActionListener] []
                           (actionPerformed [e]
                             (git/unstage (.getSelectedValuesList list) repo-path)
-                            (update-frame-content (.getContentPane frame)))))))
+                            (update-frame-content 'status))))))
 
 (defn get-stage-menuitem [list repo-path]
   (doto (JMenuItem. "Stage")
     (.addActionListener (proxy [ActionListener] []
                           (actionPerformed [e]
                             (git/stage (.getSelectedValuesList list) repo-path)
-                            (update-frame-content (.getContentPane frame)))))))
+                            (update-frame-content 'status))))))
 
 (defn get-status-values-by-type [type repo-path]
   (let [list (JList.)]
@@ -90,10 +93,11 @@
         (configure-files-list list files popup-menu)
         (doto pane
           (.add (doto label
-                  (.setFont (.deriveFont (.getFont label) Font/BOLD))
-                  (.setAlignmentX Component/LEFT_ALIGNMENT)))
+                  #_(.setFont (.deriveFont (.getFont label) Font/BOLD)))
+                "wrap")
           (.add (doto (JScrollPane. list)
-                  (.setAlignmentX Component/LEFT_ALIGNMENT))))))))
+                  #_(.setPreferredSize (.getSize list)))
+                "wrap"))))))
 
 (defn add-status-body [pane repo-path]
   (doseq [type ['staged 'modified 'untracked]]
@@ -107,16 +111,23 @@
   (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository...")
                (.setAlignmentX Component/LEFT_ALIGNMENT))))
 
-(defn update-frame-content [pane]
-  (doto pane
-    (.removeAll)
-    (.setLayout (BoxLayout. pane BoxLayout/Y_AXIS))
-    (.setBackground (Color/WHITE)))
+(defn status-view [pane]
   (apply
    (if (git/repository? (:repository-path @config))
      make-git-status-component
      make-config-repo-message)
-   [pane])
+   [pane]))
+
+(defn execute-command-view [pane]
+  (let [output-text (JTextField.)
+        input (JTextField.)]
+    ))
+
+(defn update-frame-content [view]
+  (.removeAll pane)
+  ((case view
+     status status-view
+     execute-command execute-command-view) pane)
   (.setContentPane frame pane)
   (.setVisible frame true))
 
@@ -129,26 +140,37 @@
                               (let [repo-path (-> repo-chooser (.getSelectedFile) (.getAbsolutePath))]
                                 (if (git/repository? repo-path)
                                   (do (update-config :repository-path repo-path)
-                                      (update-frame-content (.getContentPane frame)))
+                                      (update-frame-content 'status))
                                   (println "Directory " repo-path " is not a git repository!")))))))))
 
 (defn menu-item-update-status []
   (doto (JMenuItem. "Update status")
     (.addActionListener (proxy [ActionListener] []
                           (actionPerformed [e]
-                            (update-frame-content (.getContentPane frame)))))))
+                            (update-frame-content 'status))))))
+
+(defn menu-item-execute-command []
+  (doto (JMenuItem. "Execute command")
+    (.addActionListener (proxy [ActionListener] []
+                          (actionPerformed [e]
+                            )))))
 
 (defn menu-bar []
   (doto (JMenuBar.)
     (.add (doto (JMenu. "Menu")
             (.add (menu-item-open-repository))
-            (.add (menu-item-update-status))))))
+            (.add (menu-item-update-status))
+            (.add (menu-item-execute-command))))))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
-   #(doto frame
-      (.setJMenuBar (menu-bar))
-      (-> (.getContentPane) (update-frame-content))
-      (.setSize 800 600)
-      (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
-      (.setLocationRelativeTo nil))))
+   (fn []
+     (doto frame
+       (.setJMenuBar (menu-bar))
+       (.setSize 800 600)
+       (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
+       (.setLocationRelativeTo nil))
+     (doto pane
+       (.setLayout (MigLayout.))
+       #_(.setBackground (Color/WHITE)))
+     (update-frame-content 'status))))
