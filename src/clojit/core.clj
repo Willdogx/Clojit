@@ -36,23 +36,24 @@
   (doto jlist
     (.setListData (into-array list-content))
     (.setAlignmentX Component/LEFT_ALIGNMENT)
-    #_(.setFixedCellHeight 1)
     (.addMouseListener
      (proxy [MouseAdapter] []
        (mousePressed [e]
          (when (.isPopupTrigger e)
            (.show popup-menu (.getComponent e) (.getX e) (.getY e))))
        (mouseReleased [e]
-                     (when (.isPopupTrigger e)
-                       (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
+         (when (.isPopupTrigger e)
+           (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
 
 (declare update-frame-content)
 
 (defn add-status-header [pane repo-path]
-  (let [label (JLabel. (str "<html>Branch: <b>" (git/get-cur-branch repo-path) "</b> " (git/get-last-commit-message repo-path) "</html>"))]
-    (.add pane (doto label
-                 #_(.setFont (.deriveFont (.getFont label) Font/BOLD)))
-          "wrap")))
+  (.add pane (JLabel. (str "<html>Branch: <b>"
+                           (git/get-cur-branch repo-path)
+                           "</b> "
+                           (git/get-last-commit-message repo-path)
+                           "</html>"))
+        "wrap"))
 
 (defn get-unstage-menuitem [list repo-path]
   (doto (JMenuItem. "Unstage")
@@ -92,9 +93,7 @@
           (.add popup-menu-item))
         (configure-files-list list files popup-menu)
         (doto pane
-          (.add (doto label
-                  #_(.setFont (.deriveFont (.getFont label) Font/BOLD)))
-                "wrap")
+          (.add label "wrap")
           (.add (doto (JScrollPane. list)
                   #_(.setPreferredSize (.getSize list)))
                 "wrap"))))))
