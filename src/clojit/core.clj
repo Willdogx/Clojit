@@ -120,8 +120,6 @@
   (.setContentPane frame pane)
   (.setVisible frame true))
 
-(defn unstage-action-listener [])
-
 (defn menu-item-open-repository []
   (doto (JMenuItem. "Open Repository...")
     (.addActionListener (proxy [ActionListener] []
