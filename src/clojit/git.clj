@@ -21,7 +21,7 @@
   (:out (sh "git" "symbolic-ref" "--short" "HEAD" :dir repo-path)))
 
 (defn get-last-commit-message [repo-path]
-  (:out (sh "git" "log" "-1" "--pretty=%B" :dir repo-path)))
+  (:out (sh "git" "log" "-1" "--pretty=%s" :dir repo-path)))
 
 (defn repository? [path]
   (= 0 (:exit (sh "git" "-C" path "rev-parse"))))
