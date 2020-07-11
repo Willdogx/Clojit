@@ -1,7 +1,7 @@
 (ns clojit.git
   (:require [clojure.java.shell :refer [sh]])
   (:require [clojure.string :refer [split-lines blank?]])
-  (:require [clojure.string :refer [join]]))
+  (:require [clojure.string :refer [split]]))
 
 
 (defn maybe-split-lines [s]
@@ -23,8 +23,20 @@
 (defn get-last-commit-message [repo-path]
   (:out (sh "git" "log" "-1" "--pretty=%s" :dir repo-path)))
 
+(defn get-commits-log [repo-path limit]
+  (let [commits (maybe-split-lines (:out (sh "git" "log" "--oneline" "-n" (str limit) :dir repo-path)))]
+    (map #(-> %
+              (split #" ")
+              ((fn [coll]
+                 {:hash (first coll) :title (second coll)})))
+         commits)))
+
 (defn repository? [path]
   (= 0 (:exit (sh "git" "-C" path "rev-parse"))))
+
+(defn fetch
+  "TODO"
+  [])
 
 (defn unstage [filenames repo-path]
   (apply sh (flatten ["git" "reset" "--" (seq filenames) :dir repo-path])))

@@ -24,7 +24,9 @@
                           (actionPerformed [e]
                             (view-handler 'status))))))
 
-(defn menu-item-execute-command []
+(defn menu-item-execute-command
+  "TODO"
+  []
   (doto (JMenuItem. "Execute command")
     (.addActionListener (proxy [ActionListener] []
                           (actionPerformed [e])))))

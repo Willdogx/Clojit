@@ -1,21 +1,9 @@
 (ns clojit.views.status
   (:require [clojit.git :as git])
-  (:import [javax.swing JLabel JList JMenuItem JPopupMenu JScrollPane])
-  (:import [java.awt.event ActionListener MouseAdapter]))
+  (:require [clojit.components :refer [jlist]])
+  (:import [javax.swing JLabel]))
 
-(defn configure-files-list [jlist list-content popup-menu]
-  (doto jlist
-    (.setListData (into-array list-content))
-    (.addMouseListener
-     (proxy [MouseAdapter] []
-       (mousePressed [e]
-         (when (.isPopupTrigger e)
-           (.show popup-menu (.getComponent e) (.getX e) (.getY e))))
-       (mouseReleased [e]
-         (when (.isPopupTrigger e)
-           (.show popup-menu (.getComponent e) (.getX e) (.getY e))))))))
-
-(defn add-status-header [pane repo-path]
+(defn status-header [pane repo-path]
   (.add pane (JLabel. (str "<html>Branch: <b>"
                            (git/get-cur-branch repo-path)
                            "</b> "
@@ -23,59 +11,42 @@
                            "</html>"))
         "wrap"))
 
-(defn get-unstage-menuitem [list repo-path view-handler]
-  (doto (JMenuItem. "Unstage")
-    (.addActionListener (proxy [ActionListener] []
-                          (actionPerformed [e]
-                            (git/unstage (.getSelectedValuesList list) repo-path)
-                            (view-handler 'status))))))
+(defn status-file-types [repo-path view-handler]
+  (let [unstage (fn [list]
+                  (git/unstage (.getSelectedValuesList list) repo-path)
+                  (view-handler 'status))
+        stage (fn [list]
+                (git/stage (.getSelectedValues list) repo-path)
+                (view-handler 'status))]
+    [{:label "Staged:" :files (git/get-staged-files repo-path) :menu-label "Unstage" :on-click unstage}
+     {:label "Modified:" :files (git/get-modified-files repo-path) :menu-label "Stage" :on-click stage}
+     {:label "Untracked:" :files (git/get-untracked-files repo-path) :menu-label "Stage" :on-click stage}]))
 
-(defn get-stage-menuitem [list repo-path view-handler]
-  (doto (JMenuItem. "Stage")
-    (.addActionListener (proxy [ActionListener] []
-                          (actionPerformed [e]
-                            (git/stage (.getSelectedValuesList list) repo-path)
-                            (view-handler 'status))))))
-
-(defn get-status-values-by-type [type repo-path view-handler]
-  (let [list (JList.)]
-    (case type
-      staged {:files (git/get-staged-files repo-path)
-              :label (JLabel. "Staged:")
-              :list list
-              :popup-menu-item (get-unstage-menuitem list repo-path view-handler)}
-      modified {:files (git/get-modified-files repo-path)
-                :label (JLabel. "Modified:")
-                :list list
-                :popup-menu-item (get-stage-menuitem list repo-path view-handler)}
-      untracked {:files (git/get-untracked-files repo-path)
-                 :label (JLabel. "Untracked:")
-                 :list list
-                 :popup-menu-item (get-stage-menuitem list repo-path view-handler)})))
-
-(defn add-files-pane [pane type repo-path view-handler]
-  (let [{:keys [files label list popup-menu-item]} (get-status-values-by-type type repo-path view-handler)]
+(defn file-changes [pane repo-path view-handler]
+  (doseq [{:keys [label files menu-label on-click]} (status-file-types repo-path view-handler)]
     (when files
-      (let [popup-menu (JPopupMenu.)]
-        (doto popup-menu
-          (.add popup-menu-item))
-        (configure-files-list list files popup-menu)
-        (doto pane
-          (.add label "wrap")
-          (.add (JScrollPane. list) "wrap, growx"))))))
+      (doto pane
+        (.add (JLabel. label) "wrap")
+        (.add (jlist files
+                     :popup-menu {:name menu-label
+                                  :on-click on-click})
+              "wrap, growx")))))
 
-(defn add-status-body [pane repo-path view-handler]
-  (doseq [type ['staged 'modified 'untracked]]
-    (add-files-pane pane type repo-path view-handler)))
+(defn recent-commits [pane repo-path]
+  (doto pane
+    (.add (JLabel. "Recent commits") "wrap")
+    (.add (jlist (map #(str (:hash %) " " (:title %)) (git/get-commits-log repo-path 10)))
+          "wrap, growx")))
 
-(defn make-git-status-component [pane repo-path view-handler]
-  (add-status-header pane repo-path)
-  (add-status-body pane repo-path view-handler))
+(defn status-component [pane repo-path view-handler]
+  (status-header pane repo-path)
+  (file-changes pane repo-path view-handler)
+  (recent-commits pane repo-path))
 
-(defn make-config-repo-message [pane]
+(defn select-repo-message [pane]
   (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository..."))))
 
 (defn status-view [pane repo-path view-handler]
   (if (git/repository? repo-path)
-    (make-git-status-component pane repo-path view-handler)
-    (make-config-repo-message pane)))
+    (status-component pane repo-path view-handler)
+    (select-repo-message pane)))

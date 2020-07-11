@@ -4,7 +4,7 @@
   (:require [clojit.views.custom-command :refer [execute-command-view]])
   (:require [clojure.java.io :refer [file]])
   (:require clojure.edn)
-  (:import [javax.swing JFrame UIManager SwingUtilities JTextField])
+  (:import [javax.swing JFrame UIManager SwingUtilities])
   (:import [net.miginfocom.swing MigLayout]))
 
 ;; config
@@ -25,7 +25,7 @@
 ;; swing components
 (set-native-look-and-feel)
 
-(def frame (JFrame. "Clojit"))
+(def frame (doto (JFrame. "Clojit")))
 (def pane (.getContentPane frame))
 
 (defn update-frame-content
@@ -35,8 +35,10 @@
      (case view
        status (status-view pane (:repository-path @config) update-frame-content)
        execute-command (execute-command-view pane))
-     (.setContentPane frame pane)
-     (.setVisible frame true)))
+     (doto frame
+       (.setContentPane pane)
+       (.pack)
+       (.setVisible true))))
   ([view]
    ((update-frame-content) view)))
 
@@ -47,6 +49,7 @@
        (.setJMenuBar (menu-bar frame update-frame-content update-config))
        (.setSize 800 600)
        (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
-       (.setLocationRelativeTo nil))
+       (.setLocationRelativeTo nil)
+       (.pack))
      (.setLayout pane (MigLayout. "" "[grow]"))
      (update-frame-content 'status))))
