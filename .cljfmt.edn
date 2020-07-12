@@ -1,0 +1,2 @@
+{:indents ^:replace {#"^\w" [[:inner 0]]}}
+ 
