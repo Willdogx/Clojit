@@ -1,8 +1,6 @@
 (ns clojit.git
   (:require [clojure.java.shell :refer [sh]])
-  (:require [clojure.string :refer [split-lines blank?]])
-  (:require [clojure.string :refer [split]]))
-
+  (:require [clojure.string :refer [split join split-lines blank?]]))
 
 (defn maybe-split-lines [s]
   (when-not (blank? s)
@@ -28,8 +26,9 @@
     (map #(-> %
               (split #" ")
               ((fn [coll]
-                 {:hash (first coll) :title (second coll)})))
-         commits)))
+                 {:hash  (first coll)
+                  :title (join " " (rest coll))})))
+      commits)))
 
 (defn repository? [path]
   (= 0 (:exit (sh "git" "-C" path "rev-parse"))))
@@ -43,3 +42,16 @@
 
 (defn stage [filenames repo-path]
   (apply sh (flatten ["git" "add" (seq filenames) :dir repo-path])))
+
+(defn discard-changes
+  "TODO"
+  [filenames repo-path]
+  (apply sh (flatten ["git" "checkout" "--" (seq filenames) :dir repo-path])))
+
+(defn discard-untracked
+  [filenames repo-path]
+  (apply sh (flatten ["git" "clean" "-f" (seq filenames) :dir repo-path])))
+
+(defn commit
+  [message repo-path]
+  (sh "git" "commit" "-m" message :dir repo-path))

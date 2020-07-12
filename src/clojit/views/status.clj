@@ -4,37 +4,58 @@
   (:import [javax.swing JLabel]))
 
 (defn status-header [pane repo-path]
-  (.add pane (JLabel. (str "<html>Branch: <b>"
-                           (git/get-cur-branch repo-path)
-                           "</b> "
-                           (git/get-last-commit-message repo-path)
-                           "</html>"))
+  (.add pane (JLabel. (str
+                        "<html>Branch: <b>"
+                        (git/get-cur-branch repo-path)
+                        "</b> "
+                        (git/get-last-commit-message repo-path)
+                        "</html>"))
         "wrap"))
 
 (defn status-file-types [repo-path view-handler]
-  (let [unstage (fn [list]
-                  (git/unstage (.getSelectedValuesList list) repo-path)
-                  (view-handler 'status))
-        stage (fn [list]
-                (git/stage (.getSelectedValues list) repo-path)
-                (view-handler 'status))]
-    [{:label "Staged:" :files (git/get-staged-files repo-path) :menu-label "Unstage" :on-click unstage}
-     {:label "Modified:" :files (git/get-modified-files repo-path) :menu-label "Stage" :on-click stage}
-     {:label "Untracked:" :files (git/get-untracked-files repo-path) :menu-label "Stage" :on-click stage}]))
+  (let [unstage-menu-item {:name     "Unstage"
+                           :on-click (fn [list]
+                                       (git/unstage (.getSelectedValuesList list) repo-path)
+                                       (view-handler 'status))}
+        stage-menu-item   {:name     "Stage"
+                           :on-click (fn [list]
+                                       (git/stage (.getSelectedValues list) repo-path)
+                                       (view-handler 'status))}
+        discard-changes   (fn [list]
+                            (git/discard-changes (.getSelectedValues list) repo-path)
+                            (view-handler 'status))
+        discard-untracked (fn [list]
+                            (git/discard-untracked (.getSelectedValues list) repo-path)
+                            (view-handler 'status))
+        discard-staged    (fn [list] ; TODO: it should first unstaged the files and then discard them.
+                            )]
+    [{:label          "Staged:"
+      :files          (git/get-staged-files repo-path)
+      :menu-item      unstage-menu-item
+      :discard-action discard-changes}
+     {:label          "Unstaged:"
+      :files          (git/get-modified-files repo-path)
+      :menu-item      stage-menu-item
+      :discard-action discard-changes}
+     {:label          "Untracked:"
+      :files          (git/get-untracked-files repo-path)
+      :menu-item      stage-menu-item
+      :discard-action discard-untracked}]))
 
 (defn file-changes [pane repo-path view-handler]
-  (doseq [{:keys [label files menu-label on-click]} (status-file-types repo-path view-handler)]
+  (doseq [{:keys [label files menu-item discard-action]} (status-file-types repo-path view-handler)]
     (when files
       (doto pane
         (.add (JLabel. label) "wrap")
         (.add (jlist files
-                     :popup-menu {:name menu-label
-                                  :on-click on-click})
+                     :popup-menu-items [menu-item
+                                        {:name "Discard"
+                                         :on-click discard-action}])
               "wrap, growx")))))
 
 (defn recent-commits [pane repo-path]
   (doto pane
-    (.add (JLabel. "Recent commits") "wrap")
+    (.add (JLabel. "Recent commits:") "wrap")
     (.add (jlist (map #(str (:hash %) " " (:title %)) (git/get-commits-log repo-path 10)))
           "wrap, growx")))
 
