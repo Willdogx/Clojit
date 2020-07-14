@@ -13,42 +13,45 @@
         "wrap"))
 
 (defn status-file-types [repo-path view-handler]
-  (let [unstage-menu-item {:name     "Unstage"
-                           :on-click (fn [list]
-                                       (git/unstage (.getSelectedValuesList list) repo-path)
-                                       (view-handler 'status))}
-        stage-menu-item   {:name     "Stage"
+  (when-let [file-changes (git/status repo-path)]
+    (let [unstage-menu-item {:name     "Unstage"
+                             :on-click (fn [list]
+                                         (git/unstage (.getSelectedValuesList list) repo-path)
+                                         (view-handler 'status))}
+          stage-menu-item {:name     "Stage"
                            :on-click (fn [list]
                                        (git/stage (.getSelectedValues list) repo-path)
                                        (view-handler 'status))}
-        discard-changes   (fn [list]
+          discard-changes (fn [list]
                             (git/discard-changes (.getSelectedValues list) repo-path)
                             (view-handler 'status))
-        discard-untracked (fn [list]
-                            (git/discard-untracked (.getSelectedValues list) repo-path)
-                            (view-handler 'status))
-        discard-staged    (fn [list] ; TODO: it should first unstaged the files and then discard them.
-                            )
-        staged-files (git/get-staged-files repo-path)]
-    [{:label          (str "Staged (" (count staged-files) ")" ":")
-      :files          staged-files
-      :menu-item      unstage-menu-item
-      :discard-action discard-changes}
-     {:label          "Unstaged:"
-      :files          (git/get-modified-files repo-path)
-      :menu-item      stage-menu-item
-      :discard-action discard-changes}
-     {:label          "Untracked:"
-      :files          (git/get-untracked-files repo-path)
-      :menu-item      stage-menu-item
-      :discard-action discard-untracked}]))
+          discard-untracked (fn [list]
+                              (git/discard-untracked (.getSelectedValues list) repo-path)
+                              (view-handler 'status))
+          discard-staged (fn [list] ; TODO: it should first unstaged the files and then discard them.
+                           )
+          staged-files (filter #(= (:state %) 'staged) file-changes)
+          unstaged-files (filter #(= (:state %) 'unstaged) file-changes)
+          untracked-files (filter #(= (:state %) 'untracked) file-changes)]
+      [{:label          (str "Staged (" (count staged-files) ")" ":")
+        :files          staged-files
+        :menu-item      unstage-menu-item
+        :discard-action discard-changes}
+       {:label          (str "Unstaged (" (count unstaged-files) ")" ":")
+        :files          unstaged-files
+        :menu-item      stage-menu-item
+        :discard-action discard-changes}
+       {:label          (str "Untracked (" (count untracked-files) ")" ":")
+        :files          untracked-files
+        :menu-item      stage-menu-item
+        :discard-action discard-untracked}])))
 
 (defn file-changes [pane repo-path view-handler]
   (doseq [{:keys [label files menu-item discard-action]} (status-file-types repo-path view-handler)]
-    (when files
+    (when (seq files)
       (doto pane
         (.add (JLabel. label) "wrap")
-        (.add (jlist files
+        (.add (jlist (map #(:filename %) files)
                      :popup-menu-items [menu-item
                                         {:name "Discard"
                                          :on-click discard-action}])

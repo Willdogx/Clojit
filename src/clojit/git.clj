@@ -6,15 +6,6 @@
   (when-not (blank? s)
     (split-lines s)))
 
-(defn get-staged-files [repo-path]
-  (maybe-split-lines (:out (sh "git" "diff" "--name-only" "--cached" :dir repo-path))))
-
-(defn get-untracked-files [repo-path]
-  (maybe-split-lines (:out (sh "git" "ls-files" "--others" "--exclude-standard" :dir repo-path))))
-
-(defn get-modified-files [repo-path]
-  (maybe-split-lines (:out (sh "git" "ls-files" "-m" :dir repo-path))))
-
 (defn get-cur-branch [repo-path]
   (:out (sh "git" "symbolic-ref" "--short" "HEAD" :dir repo-path)))
 
@@ -70,6 +61,27 @@
 (defn commit
   [message repo-path]
   (sh "git" "commit" "-m" message :dir repo-path))
+
+(defn status
+  [repo-path]
+  (let [changes (maybe-split-lines (:out (sh "git" "status" "--short" :dir repo-path)))
+        split-changes (partial split-at 2)
+        ->strings (partial map (partial apply str))
+        parse-changes (fn [state-and-filename]
+                        (let [type-of-change #(case (trim %)
+                                                "M" 'modified
+                                                "A" 'added
+                                                "D" 'deleted
+                                                'untracked)
+                              state-of-change #(case (subs % 0 1)
+                                                 " " 'unstaged
+                                                 "?" 'untracked
+                                                 'staged)]
+                          {:type (type-of-change (first state-and-filename))
+                           :state (state-of-change (first state-and-filename))
+                           :filename (trim (second state-and-filename))}))]
+    (when changes
+      (map (comp parse-changes ->strings split-changes) changes))))
 
 (defn command
   [repo-path command]

@@ -8,7 +8,7 @@
   "TODO"
   [pane repo-path]
   (let [output-text (JTextArea.)
-        input       (JTextField.)]
+        input (JTextField.)]
     (.setEditable output-text false)
     (.addActionListener input (reify ActionListener
                                 (actionPerformed [this _]
