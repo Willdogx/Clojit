@@ -51,7 +51,12 @@
     (when (seq files)
       (doto pane
         (.add (JLabel. label) "wrap")
-        (.add (jlist (map #(:filename %) files)
+        (.add (jlist (map #(str
+                             "<html><b>" (:type %) ":</b>"
+                             (apply str (repeat (- 10 (count (str (:type %)))) "&ensp;"))
+                             (:filename %)
+                             "</html>")
+                       files)
                 :popup-menu-items
                 [menu-item
                  {:name "Discard"
@@ -68,13 +73,13 @@
     (when unmerged-commits
       (doto pane
         (.add (JLabel. (str "<html>" "Unmerged into <b>" tracking "</b>:" "</html>")) "wrap")
-        (.add (jlist (map #(str (:hash %) " " (:title %)) (git/get-unmerged-into-tracking-branch tracking repo-path)))
+        (.add (jlist (map #(str "<html><b>" (:hash %) "</b> " (:title %) "</html>") (git/get-unmerged-into-tracking-branch tracking repo-path)))
               "wrap, growx")))))
 
 (defn recent-commits [pane repo-path]
   (doto pane
     (.add (JLabel. "Recent commits:") "wrap")
-    (.add (jlist (map #(str (:hash %) " " (:title %)) (git/get-commits-log repo-path 10)))
+    (.add (jlist (map #(str "<html><b>"(:hash %) "</b> " (:title %) "</html>") (git/get-commits-log repo-path 10)))
           "wrap, growx")))
 
 (defn status-component [pane repo-path view-handler]
