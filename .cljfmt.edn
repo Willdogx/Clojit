@@ -1,2 +1,3 @@
-{:indents ^:replace {#"^\w" [[:inner 0]]}}
+{:align-associative? false
+ :indents ^:replace {#"^\w" [[:inner 0]]}}
  
