@@ -52,9 +52,13 @@
       (doto pane
         (.add (JLabel. label) "wrap")
         (.add (jlist (map #(:filename %) files)
-                     :popup-menu-items [menu-item
-                                        {:name "Discard"
-                                         :on-click discard-action}])
+                :popup-menu-items
+                [menu-item
+                 {:name "Discard"
+                  :on-click discard-action}
+                 {:name "Diff"
+                  :on-click (fn [list]
+                              (view-handler 'diff (first (filter #(= (:filename %) (.getSelectedValue list)) files))))}])
               "wrap, growx")))))
 
 (defn maybe-unmerged-in-tracking-branch

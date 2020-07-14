@@ -58,6 +58,11 @@
   [filenames repo-path]
   (apply sh (flatten ["git" "clean" "-f" (seq filenames) :dir repo-path])))
 
+(defn discard
+  "TODO"
+  [files repo-path]
+  )
+
 (defn commit
   [message repo-path]
   (sh "git" "commit" "-m" message :dir repo-path))
@@ -86,3 +91,13 @@
 (defn command
   [repo-path command]
   (:out (apply sh (flatten ["git" (split command #" ") :dir repo-path]))))
+
+(defn diff
+  [file repo-path]
+  (let [readfile #(slurp (str repo-path "/" (:filename %)))]
+    (case (:type file)
+      added (readfile file)
+      untracked (readfile file)
+      modified (:out (sh "git" "diff" (:filename file) :dir repo-path))
+      deleted (:out (sh "git" "show" (str "HEAD^:" (:filename file)) :dir repo-path))
+      (println file (:type file)))))

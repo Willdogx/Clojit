@@ -3,6 +3,7 @@
   (:require [clojit.views.menu :refer [menu-bar]])
   (:require [clojit.views.custom-command :refer [execute-command-view]])
   (:require [clojit.views.commit :refer [commit]])
+  (:require [clojit.views.diff :refer [diff]])
   (:require [clojure.java.io :refer [file]])
   (:require clojure.edn)
   (:import [javax.swing JFrame UIManager SwingUtilities JLabel])
@@ -31,14 +32,17 @@
 
 (defn update-frame-content
   ([frame pane]
-   (fn [view]
+   (fn [view & args]
      (.removeAll pane)
      (.setLayout pane (MigLayout. "" "[grow]"))
-     (case view
-       status (status pane (:repository-path @config) (update-frame-content frame pane))
-       execute-command (execute-command-view pane (:repository-path @config))
-       commit (commit pane (update-frame-content frame pane) (:repository-path @config))
-       select-repo-message (select-repo-message pane))
+     (let [repo-path (:repository-path @config)
+           view-handler (update-frame-content frame pane)]
+       (case view
+         status (status pane repo-path view-handler)
+         execute-command (execute-command-view pane repo-path)
+         commit (commit pane view-handler repo-path)
+         diff (apply (partial  diff pane repo-path view-handler) args)
+         select-repo-message (select-repo-message pane)))
      (doto frame
        (.setContentPane pane)
        (.setVisible true))))
