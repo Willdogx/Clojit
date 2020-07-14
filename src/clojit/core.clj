@@ -1,11 +1,11 @@
 (ns clojit.core
-  (:require [clojit.views.status :refer [status-view]])
+  (:require [clojit.views.status :refer [status]])
   (:require [clojit.views.menu :refer [menu-bar]])
   (:require [clojit.views.custom-command :refer [execute-command-view]])
   (:require [clojit.views.commit :refer [commit]])
   (:require [clojure.java.io :refer [file]])
   (:require clojure.edn)
-  (:import [javax.swing JFrame UIManager SwingUtilities])
+  (:import [javax.swing JFrame UIManager SwingUtilities JLabel])
   (:import [net.miginfocom.swing MigLayout]))
 
 ;; config
@@ -13,43 +13,48 @@
 
 (def config (atom (if (.exists (file config-filename))
                     (read-string (slurp config-filename))
-                    {:repository-path nil})))
+                    {:repositories []})))
 
 (defn update-config [& {:as opts}]
   (swap! config #(merge % opts))
   (spit "config.edn" (pr-str @config)))
 
-;; swing
-(defn set-native-look-and-feel []
-  (UIManager/setLookAndFeel (UIManager/getSystemLookAndFeelClassName)))
-
 ;; swing components
-(set-native-look-and-feel)
+(UIManager/setLookAndFeel (UIManager/getSystemLookAndFeelClassName))
 
-(def frame (doto (JFrame. "Clojit")))
-(def pane (.getContentPane frame))
+(defn select-repo-message [pane]
+  (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository..."))))
+
+(defn repositories?
+  []
+  (empty? (:repositories @config)))
 
 (defn update-frame-content
-  ([]
+  ([frame pane]
    (fn [view]
      (.removeAll pane)
+     (.setLayout pane (MigLayout. "" "[grow]"))
      (case view
-       status (status-view pane (:repository-path @config) update-frame-content)
-       execute-command (execute-command-view pane)
-       commit (commit pane update-frame-content (:repository-path @config)))
+       status (status pane (:repository-path @config) (update-frame-content frame pane))
+       execute-command (execute-command-view pane (:repository-path @config))
+       commit (commit pane (update-frame-content frame pane) (:repository-path @config))
+       select-repo-message (select-repo-message pane))
      (doto frame
        (.setContentPane pane)
        (.setVisible true))))
-  ([view]
-   ((update-frame-content) view)))
+  ([frame pane view]
+   ((update-frame-content frame pane) view)))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
    (fn []
-     (doto frame
-       (.setJMenuBar (menu-bar frame update-frame-content update-config))
-       (.setSize 800 600)
-       (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
-       (.setLocationRelativeTo nil))
-     (.setLayout pane (MigLayout. "" "[grow]"))
-     (update-frame-content 'status))))
+     (let [frame (JFrame. "Clojit")
+           pane  (.getContentPane frame)]
+       (doto frame
+         (.setJMenuBar (menu-bar frame (update-frame-content frame pane) update-config))
+         (.setSize 800 600)
+         (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
+         (.setLocationRelativeTo nil))
+       (if (repositories?)
+         (update-frame-content frame pane 'status)
+         (update-frame-content frame pane 'select-repo-message))))))
