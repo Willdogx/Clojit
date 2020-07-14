@@ -1,6 +1,6 @@
 (ns clojit.git
   (:require [clojure.java.shell :refer [sh]])
-  (:require [clojure.string :refer [split join split-lines blank?]]))
+  (:require [clojure.string :refer [split join split-lines blank? trim]]))
 
 (defn maybe-split-lines [s]
   (when-not (blank? s)
@@ -30,12 +30,28 @@
                   :title (join " " (rest coll))})))
       commits)))
 
+(defn get-tracking-branch
+  [repo-path]
+  ;; TODO: handle case in which there is no tracking branch
+  (trim (:out (sh "git" "rev-parse" "--symbolic-full-name" "--abbrev-ref" "@{u}" :dir repo-path))))
+
+(defn get-unmerged-into-tracking-branch
+  [tracking repo-path]
+  (let [commits  (maybe-split-lines (:out (sh "git" "log" (str tracking ".." "HEAD") "--oneline" :dir repo-path)))]
+    (when commits
+      (map #(-> %
+                (split #" ")
+                ((fn [coll]
+                   {:hash  (first coll)
+                    :title (join " " (rest coll))})))
+        commits))))
+
 (defn repository? [path]
   (= 0 (:exit (sh "git" "-C" path "rev-parse"))))
 
 (defn fetch
-  "TODO"
-  [])
+  [repo-path]
+  (sh "git" "fetch" :dir repo-path))
 
 (defn unstage [filenames repo-path]
   (apply sh (flatten ["git" "reset" "--" (seq filenames) :dir repo-path])))
@@ -44,7 +60,6 @@
   (apply sh (flatten ["git" "add" (seq filenames) :dir repo-path])))
 
 (defn discard-changes
-  "TODO"
   [filenames repo-path]
   (apply sh (flatten ["git" "checkout" "--" (seq filenames) :dir repo-path])))
 
@@ -55,3 +70,7 @@
 (defn commit
   [message repo-path]
   (sh "git" "commit" "-m" message :dir repo-path))
+
+(defn command
+  [repo-path command]
+  (:out (apply sh (flatten ["git" (split command #" ") :dir repo-path]))))

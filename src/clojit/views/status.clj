@@ -28,9 +28,10 @@
                             (git/discard-untracked (.getSelectedValues list) repo-path)
                             (view-handler 'status))
         discard-staged    (fn [list] ; TODO: it should first unstaged the files and then discard them.
-                            )]
-    [{:label          "Staged:"
-      :files          (git/get-staged-files repo-path)
+                            )
+        staged-files (git/get-staged-files repo-path)]
+    [{:label          (str "Staged (" (count staged-files) ")" ":")
+      :files          staged-files
       :menu-item      unstage-menu-item
       :discard-action discard-changes}
      {:label          "Unstaged:"
@@ -53,6 +54,16 @@
                                          :on-click discard-action}])
               "wrap, growx")))))
 
+(defn maybe-unmerged-in-tracking-branch
+  [pane repo-path]
+  (let [tracking         (git/get-tracking-branch repo-path)
+        unmerged-commits (git/get-unmerged-into-tracking-branch tracking repo-path)]
+    (when unmerged-commits
+      (doto pane
+        (.add (JLabel. (str "<html>" "Unmerged into <b>" tracking "</b>:" "</html>")) "wrap")
+        (.add (jlist (map #(str (:hash %) " " (:title %)) (git/get-unmerged-into-tracking-branch tracking repo-path)))
+              "wrap, growx")))))
+
 (defn recent-commits [pane repo-path]
   (doto pane
     (.add (JLabel. "Recent commits:") "wrap")
@@ -62,12 +73,13 @@
 (defn status-component [pane repo-path view-handler]
   (status-header pane repo-path)
   (file-changes pane repo-path view-handler)
+  (maybe-unmerged-in-tracking-branch pane repo-path)
   (recent-commits pane repo-path))
 
 (defn select-repo-message [pane]
   (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository..."))))
 
-(defn status-view [pane repo-path view-handler]
+(defn status [pane repo-path view-handler]
   (if (git/repository? repo-path)
     (status-component pane repo-path view-handler)
     (select-repo-message pane)))
