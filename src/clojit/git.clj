@@ -44,11 +44,13 @@
   [repo-path]
   (sh "git" "fetch" :dir repo-path))
 
-(defn unstage [filenames repo-path]
-  (apply sh (flatten ["git" "reset" "--" (seq filenames) :dir repo-path])))
+(defn unstage
+  [changes repo-path]
+  (apply sh (flatten ["git" "reset" "--" (map #(:filename %) changes) :dir repo-path])))
 
-(defn stage [filenames repo-path]
-  (apply sh (flatten ["git" "add" (seq filenames) :dir repo-path])))
+(defn stage
+  [changes repo-path]
+  (apply sh (flatten ["git" "add" (map #(:filename %) changes) :dir repo-path])))
 
 (defn discard-changes
   [filenames repo-path]
@@ -93,11 +95,15 @@
   (:out (apply sh (flatten ["git" (split command #" ") :dir repo-path]))))
 
 (defn diff
-  [file repo-path]
+  [change repo-path]
   (let [readfile #(slurp (str repo-path "/" (:filename %)))]
-    (case (:type file)
-      added (readfile file)
-      untracked (readfile file)
-      modified (:out (sh "git" "diff" (:filename file) :dir repo-path))
-      deleted (:out (sh "git" "show" (str "HEAD^:" (:filename file)) :dir repo-path))
-      (println file (:type file)))))
+    (case (:type change)
+      added (readfile change)
+      untracked (readfile change)
+      modified (:out (sh
+                       "git" "diff"
+                       (when (= 'staged (:state change)) "--cached")
+                       (:filename change)
+                       :dir repo-path))
+      deleted (:out (sh "git" "show" (str "HEAD^:" (:filename change)) :dir repo-path))
+      (println change (:type change)))))
