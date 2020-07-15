@@ -30,7 +30,6 @@
             re (first current)
             replacement (second current)]
         (recur (s/replace s re replacement) (rest replacements))))))
-  
 
   (defn diff
     [pane repo-path view-handler file]

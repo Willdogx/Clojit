@@ -20,6 +20,10 @@
   (swap! config #(merge % opts))
   (spit "config.edn" (pr-str @config)))
 
+;; events
+(def on-render (atom []))
+(swap! on-render conj (fn [] "foo"))
+
 ;; swing components
 (UIManager/setLookAndFeel (UIManager/getSystemLookAndFeelClassName))
 
@@ -30,6 +34,11 @@
   []
   (empty? (:repositories @config)))
 
+(defn call-events
+  [events]
+  (doseq [event events]
+    (event)))
+
 (defn update-frame-content
   ([frame pane]
    (fn [view & args]
@@ -38,14 +47,17 @@
      (let [repo-path (:repository-path @config)
            view-handler (update-frame-content frame pane)]
        (case view
-         status (status pane repo-path view-handler)
+         status (status pane repo-path view-handler on-render)
          execute-command (execute-command-view pane repo-path)
          commit (commit pane view-handler repo-path)
          diff (apply (partial  diff pane repo-path view-handler) args)
          select-repo-message (select-repo-message pane)))
      (doto frame
        (.setContentPane pane)
-       (.setVisible true))))
+       (.setVisible true))
+     (call-events @on-render)
+     ;; pack or not?
+     #_(.pack frame)))
   ([frame pane view]
    ((update-frame-content frame pane) view)))
 
