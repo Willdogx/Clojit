@@ -5,9 +5,9 @@
   (:require [clojit.views.commit :refer [commit]])
   (:require [clojit.views.diff :refer [diff]])
   (:require [clojure.java.io :refer [file]])
+  (:require [clojure.string :as s])
   (:require clojure.edn)
-  (:import [javax.swing JFrame UIManager SwingUtilities JLabel])
-  (:import [net.miginfocom.swing MigLayout]))
+  (:import [javax.swing JFrame UIManager SwingUtilities JLabel JTabbedPane JPanel]))
 
 ;; config
 (def config-filename "config.edn")
@@ -40,26 +40,32 @@
     (event)))
 
 (defn update-frame-content
-  ([frame pane]
+  ([frame panel]
    (fn [view & args]
-     (.removeAll pane)
-     (.setLayout pane (MigLayout. "" "[grow]"))
+     (.removeAll panel)
      (let [repo-path (:repository-path @config)
-           view-handler (update-frame-content frame pane)]
+           view-handler (update-frame-content frame panel)]
        (case view
-         status (status pane repo-path view-handler on-render)
-         execute-command (execute-command-view pane repo-path)
-         commit (commit pane view-handler repo-path)
-         diff (apply (partial  diff pane repo-path view-handler) args)
-         select-repo-message (select-repo-message pane)))
-     (doto frame
-       (.setContentPane pane)
-       (.setVisible true))
+         status (status panel repo-path view-handler on-render)
+         execute-command (execute-command-view panel repo-path)
+         commit (commit panel view-handler repo-path)
+         diff (apply (partial  diff panel repo-path view-handler) args)
+         select-repo-message (select-repo-message panel)))
+     (.repaint panel)
+     (.setVisible frame true)
      (call-events @on-render)
      ;; pack or not?
      #_(.pack frame)))
   ([frame pane view]
    ((update-frame-content frame pane) view)))
+
+(defn show-tabs
+  [frame]
+  (let [panel (JPanel.)]
+    (.add frame (doto (JTabbedPane.)
+                  (.addTab (last (s/split (:repository-path @config) #"/")) panel)))
+    (.setJMenuBar frame (menu-bar frame (update-frame-content frame panel) update-config))
+    (update-frame-content frame panel 'status)))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
@@ -67,10 +73,11 @@
      (let [frame (JFrame. "Clojit")
            pane  (.getContentPane frame)]
        (doto frame
-         (.setJMenuBar (menu-bar frame (update-frame-content frame pane) update-config))
+         ;; FIXME: menubar should be passed the panel inside the current active tab
          (.setSize 800 600)
          (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
          (.setLocationRelativeTo nil))
        (if (repositories?)
-         (update-frame-content frame pane 'status)
+         (show-tabs frame)
+         #_(update-frame-content frame pane 'status)
          (update-frame-content frame pane 'select-repo-message))))))

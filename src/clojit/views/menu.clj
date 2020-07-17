@@ -3,9 +3,6 @@
   (:import [javax.swing JFileChooser JMenuItem JMenuBar JMenu KeyStroke JOptionPane])
   (:import [java.awt.event ActionListener KeyEvent]))
 
-(def repo-chooser (doto (JFileChooser.)
-                    (.setFileSelectionMode JFileChooser/DIRECTORIES_ONLY)))
-
 (defn menuitem
   [name & {:keys [keys on-click]}]
   (let [item (JMenuItem. name)]
@@ -26,20 +23,23 @@
       (.add menu (menuitem name :keys keys :on-click on-click)))
     (doto menubar (.add menu))))
 
+(def repo-chooser (doto (JFileChooser.)
+                    (.setFileSelectionMode JFileChooser/DIRECTORIES_ONLY)))
+
 (defn menu-bar [frame view-handler config-updater]
   (menubar "Menu"
     {:name "Open Repository..."
      :keys [KeyEvent/VK_O KeyEvent/CTRL_DOWN_MASK]
      :on-click (fn []
-                       (when (= (.showOpenDialog repo-chooser frame) JFileChooser/APPROVE_OPTION)
-                              ; Save the path of the repo in a config file and initialize git commands
-                         (let [repo-path (-> repo-chooser (.getSelectedFile) (.getAbsolutePath))]
-                           (if (git/repository? repo-path)
-                             (do (config-updater :repository-path repo-path)
-                               (view-handler 'status))
-                             (JOptionPane/showMessageDialog
-                               frame
-                               (str "Directory " repo-path " is not a git repository!"))))))}
+                 (when (= (.showOpenDialog repo-chooser frame) JFileChooser/APPROVE_OPTION)
+                   ;; Save the path of the repo in a config file and initialize git commands
+                   (let [repo-path (-> repo-chooser (.getSelectedFile) (.getAbsolutePath))]
+                     (if (git/repository? repo-path)
+                       (do (config-updater :repository-path repo-path)
+                         (view-handler 'status))
+                       (JOptionPane/showMessageDialog
+                         frame
+                         (str "Directory " repo-path " is not a git repository!"))))))}
     {:name "Status"
      :keys [KeyEvent/VK_S KeyEvent/ALT_DOWN_MASK]
      :on-click #(view-handler 'status)}

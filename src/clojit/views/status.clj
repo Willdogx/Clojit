@@ -1,10 +1,11 @@
 (ns clojit.views.status
   (:require [clojit.git :as git])
   (:require [clojit.components :refer [jlist]])
-  (:import [javax.swing JLabel]))
+  (:import [javax.swing JLabel])
+  (:import [net.miginfocom.swing MigLayout]))
 
-(defn status-header [pane repo-path]
-  (.add pane (JLabel. (str
+(defn status-header [panel repo-path]
+  (.add panel (JLabel. (str
                         "<html>Branch: <b>"
                         (git/get-cur-branch repo-path)
                         "</b> "
@@ -52,10 +53,10 @@
         :menu-item      (stage-menu-item untracked-files)
         :discard-action discard-untracked}])))
 
-(defn file-changes [pane repo-path view-handler on-render]
+(defn file-changes [panel repo-path view-handler on-render]
   (doseq [{:keys [label files menu-item discard-action]} (status-file-types repo-path view-handler)]
     (when (seq files)
-      (doto pane
+      (doto panel
         (.add (JLabel. label) "wrap")
         (.add (jlist (map #(str
                              "<html><b>" (:type %) ":</b>"
@@ -64,7 +65,7 @@
                              "</html>")
                        files)
                 on-render
-                pane
+                panel
                 :popup-menu-items
                 [menu-item
                  {:name "Discard"
@@ -75,35 +76,38 @@
               "wrap, growx")))))
 
 (defn maybe-unmerged-in-tracking-branch
-  [pane repo-path on-render]
+  [panel repo-path on-render]
   (let [tracking (git/get-tracking-branch repo-path)
         unmerged-commits (git/get-unmerged-into-tracking-branch tracking repo-path)]
     (when unmerged-commits
-      (doto pane
+      (doto panel
         (.add (JLabel. (str "<html>" "Unmerged into <b>" tracking "</b>:" "</html>")) "wrap")
-        (.add (jlist (map #(str "<html><b>" (:hash %) "</b> " (:title %) "</html>") (git/get-unmerged-into-tracking-branch tracking repo-path))
+        (.add (jlist (map
+                       #(str "<html><b>" (:hash %) "</b> " (:title %) "</html>")
+                       (git/get-unmerged-into-tracking-branch tracking repo-path))
                 on-render
-                pane)
+                panel)
               "wrap, growx")))))
 
-(defn recent-commits [pane repo-path on-render]
-  (doto pane
+(defn recent-commits [panel repo-path on-render]
+  (doto panel
     (.add (JLabel. "Recent commits:") "wrap")
     (.add (jlist (map #(str "<html><b>" (:hash %) "</b> " (:title %) "</html>") (git/get-commits-log repo-path 10))
             on-render
-            pane)
+            panel)
           "wrap, growx")))
 
-(defn status-component [pane repo-path view-handler on-render]
-  (status-header pane repo-path)
-  (file-changes pane repo-path view-handler on-render)
-  (maybe-unmerged-in-tracking-branch pane repo-path on-render)
-  (recent-commits pane repo-path on-render))
+(defn status-component [panel repo-path view-handler on-render]
+  (.setLayout panel (MigLayout. "" "[grow]"))
+  (status-header panel repo-path)
+  (file-changes panel repo-path view-handler on-render)
+  (maybe-unmerged-in-tracking-branch panel repo-path on-render)
+  (recent-commits panel repo-path on-render))
 
-(defn select-repo-message [pane]
-  (.add pane (doto (JLabel. "Select a repository in Menu -> Open Repository..."))))
+(defn select-repo-message [panel]
+  (.add panel (doto (JLabel. "Select a repository in Menu -> Open Repository..."))))
 
-(defn status [pane repo-path view-handler on-render]
+(defn status [panel repo-path view-handler on-render]
   (if (git/repository? repo-path)
-    (status-component pane repo-path view-handler on-render)
-    (select-repo-message pane)))
+    (status-component panel repo-path view-handler on-render)
+    (select-repo-message panel)))

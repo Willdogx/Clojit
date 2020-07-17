@@ -81,6 +81,7 @@
                                                 "D" 'deleted
                                                 'untracked)
                               state-of-change #(case (subs % 0 1)
+                                                 ;; FIXME: handle files that have chunks staged and chunks unstaged.
                                                  " " 'unstaged
                                                  "?" 'untracked
                                                  'staged)]

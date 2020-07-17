@@ -2,12 +2,14 @@
   (:require [clojit.git :as git])
   (:import [javax.swing JPanel JLabel JTextArea JButton JScrollPane])
   (:import [java.awt.event ActionListener])
-  (:import [java.awt FlowLayout]))
+  (:import [java.awt FlowLayout])
+  (:import [net.miginfocom.swing MigLayout]))
 
 (defn commit
-  [pane view-handler repo-path]
+  [panel view-handler repo-path]
+  (.setLayout panel (MigLayout. "" "[grow]"))
   (let [textarea (JTextArea.)]
-    (doto pane
+    (doto panel
       (.add (JLabel. "Commit message:") "wrap")
       (.add (JScrollPane. textarea) "wrap, grow, height :200:")
       (.add (doto (JPanel.)
