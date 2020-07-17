@@ -61,9 +61,7 @@
   (apply sh (flatten ["git" "clean" "-f" (seq filenames) :dir repo-path])))
 
 (defn discard
-  "TODO"
-  [files repo-path]
-  )
+  [files repo-path])
 
 (defn commit
   [message repo-path]

@@ -31,16 +31,16 @@
             replacement (second current)]
         (recur (s/replace s re replacement) (rest replacements))))))
 
-  (defn diff
-    [pane repo-path view-handler file]
-    (let [diff (git/diff file repo-path)
-          editorpane (JEditorPane.)]
-      (.setLayout pane (BorderLayout.))
-      (doto editorpane
-        (.setEditable false)
-        (.setContentType "text/html")
-        (.setText (case (:type file)
-                    modified (apply str (map (comp color escape-chars) (s/split-lines diff)))
-                    deleted (apply str (map (comp color-removed escape-chars) (s/split-lines diff)))
-                    (apply str (map (comp color-added escape-chars) (s/split-lines diff))))))
-      (.add pane (JScrollPane. editorpane))))
+(defn diff
+  [pane repo-path view-handler file]
+  (let [diff (git/diff file repo-path)
+        editorpane (JEditorPane.)]
+    (.setLayout pane (BorderLayout.))
+    (doto editorpane
+      (.setEditable false)
+      (.setContentType "text/html")
+      (.setText (case (:type file)
+                  modified (apply str (map (comp color escape-chars) (s/split-lines diff)))
+                  deleted (apply str (map (comp color-removed escape-chars) (s/split-lines diff)))
+                  (apply str (map (comp color-added escape-chars) (s/split-lines diff))))))
+    (.add pane (JScrollPane. editorpane))))

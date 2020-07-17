@@ -5,7 +5,6 @@
   (:import [java.awt.event ActionListener]))
 
 (defn execute-command-view
-  "TODO"
   [pane repo-path]
   (let [output-text (JTextArea.)
         input (JTextField.)]

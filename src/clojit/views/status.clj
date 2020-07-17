@@ -58,12 +58,13 @@
     (when (seq files)
       (doto panel
         (.add (JLabel. label) "wrap")
-        (.add (jlist (map #(str
-                             "<html><b>" (:type %) ":</b>"
-                             (apply str (repeat (- 10 (count (str (:type %)))) "&ensp;"))
-                             (:filename %)
-                             "</html>")
-                       files)
+        (.add (jlist
+                (map #(str
+                        "<html><b>" (:type %) ":</b>"
+                        (apply str (repeat (- 10 (count (str (:type %)))) "&ensp;"))
+                        (:filename %)
+                        "</html>")
+                  files)
                 on-render
                 panel
                 :popup-menu-items
