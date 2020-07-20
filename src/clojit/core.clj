@@ -14,7 +14,16 @@
 
 (def config (atom (if (.exists (file config-filename))
                     (read-string (slurp config-filename))
-                    {:repositories []})))
+                    {:repositories []
+                     :repository-path nil})))
+
+(defn add-repository
+  ([repository-path]
+    (add-repository repository-path nil))
+  ([repository-path active]
+    ;; FIXME: when active is true change to nil all other repositories.
+    (swap! config #(merge % {:repositories (conj (:repositories %) {:repository-path repository-path
+                                                                    :active active})}))))
 
 (defn update-config [& {:as opts}]
   (swap! config #(merge % opts))
@@ -32,7 +41,7 @@
 
 (defn repositories?
   []
-  (empty? (:repositories @config)))
+  (seq (:repository-path @config)))
 
 (defn call-events
   [events]
@@ -41,43 +50,43 @@
 
 (defn update-frame-content
   ([frame panel]
-   (fn [view & args]
-     (.removeAll panel)
-     (let [repo-path (:repository-path @config)
-           view-handler (update-frame-content frame panel)]
-       (case view
-         status (status panel repo-path view-handler on-render)
-         execute-command (execute-command-view panel repo-path)
-         commit (commit panel view-handler repo-path)
-         diff (apply (partial  diff panel repo-path view-handler) args)
-         select-repo-message (select-repo-message panel)))
-     (.repaint panel)
-     (.setVisible frame true)
-     (call-events @on-render)
+    (fn [view & args]
+      (.removeAll panel)
+      (let [repo-path (:repository-path @config)
+            view-handler (update-frame-content frame panel)]
+        (case view
+          status (status panel repo-path view-handler on-render)
+          execute-command (execute-command-view panel repo-path)
+          commit (commit panel view-handler repo-path)
+          diff (apply (partial  diff panel repo-path view-handler) args)
+          select-repo-message (select-repo-message panel)))
+      (.repaint panel)
+      (.setVisible frame true)
+      (call-events @on-render)
      ;; pack or not?
-     #_(.pack frame)))
+      #_(.pack frame)))
   ([frame pane view]
-   ((update-frame-content frame pane) view)))
+    ((update-frame-content frame pane) view)))
 
 (defn show-tabs
   [frame]
   (let [panel (JPanel.)]
     (.add frame (doto (JTabbedPane.)
                   (.addTab (last (s/split (:repository-path @config) #"/")) panel)))
-    (.setJMenuBar frame (menu-bar frame (update-frame-content frame panel) update-config))
     (update-frame-content frame panel 'status)))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
-   (fn []
-     (let [frame (JFrame. "Clojit")
-           pane  (.getContentPane frame)]
-       (doto frame
-         ;; FIXME: menubar should be passed the panel inside the current active tab
-         (.setSize 800 600)
-         (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
-         (.setLocationRelativeTo nil))
-       (if (repositories?)
-         (show-tabs frame)
-         #_(update-frame-content frame pane 'status)
-         (update-frame-content frame pane 'select-repo-message))))))
+    (fn []
+      (let [frame (JFrame. "Clojit")
+            pane  (.getContentPane frame)]
+        (doto frame
+          ;; FIXME: menubar should be passed the panel inside the current active tab
+          (.setSize 800 600)
+          (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
+          (.setLocationRelativeTo nil)
+          (.setJMenuBar (menu-bar frame (update-frame-content frame pane) update-config)))
+        (if (repositories?)
+          (show-tabs frame)
+          #_(update-frame-content frame pane 'status)
+          (update-frame-content frame pane 'select-repo-message))))))
