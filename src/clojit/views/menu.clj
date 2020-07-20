@@ -62,14 +62,10 @@
          :on-click #(view-handler 'commit)}))
 
 (defn menu-bar
-  [frame view-handler config-updater active-repo-panel]
+  [frame view-handler config-updater]
   ;; FIXME: There should be 2 different menus in menu-bar
   ;; one could be named File and have the Open Repository... item
   ;; and the other one should only appear on tab activation,
   ;; and should be named Repository and have all the other items.
-  (let [filemenu (filemenu frame config-updater view-handler)
-        repomenu (repomenu view-handler)]
-    (menubar
-     filemenu
-     ;; how to define when a repo is open
-     (when active-repo-panel repomenu))))
+  (let [filemenu (filemenu frame config-updater view-handler)]
+    (menubar filemenu)))

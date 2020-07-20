@@ -1,6 +1,6 @@
 (ns clojit.core
   (:require [clojit.views.status :refer [status]])
-  (:require [clojit.views.menu :refer [menu-bar]])
+  (:require [clojit.views.menu :refer [menu-bar repomenu]])
   (:require [clojit.views.custom-command :refer [execute-command-view]])
   (:require [clojit.views.commit :refer [commit]])
   (:require [clojit.views.diff :refer [diff]])
@@ -69,24 +69,27 @@
     ((update-frame-content frame pane) view)))
 
 (defn show-tabs
-  [frame]
-  (let [panel (JPanel.)]
+  [frame menubar]
+  (let [panel (JPanel.)
+        view-handler (update-frame-content frame panel)]
+    (.add menubar (repomenu view-handler))
     (.add frame (doto (JTabbedPane.)
                   (.addTab (last (s/split (:repository-path @config) #"/")) panel)))
-    (update-frame-content frame panel 'status)))
+    (view-handler 'status)))
 
 (defn -main [& args]
   (SwingUtilities/invokeLater
     (fn []
       (let [frame (JFrame. "Clojit")
-            pane  (.getContentPane frame)]
+            pane  (.getContentPane frame)
+            menubar (menu-bar frame (update-frame-content frame pane) update-config)]
         (doto frame
           ;; FIXME: menubar should be passed the panel inside the current active tab
           (.setSize 800 600)
           (.setDefaultCloseOperation JFrame/EXIT_ON_CLOSE)
           (.setLocationRelativeTo nil)
-          (.setJMenuBar (menu-bar frame (update-frame-content frame pane) update-config)))
+          (.setJMenuBar menubar))
         (if (repositories?)
-          (show-tabs frame)
+          (show-tabs frame menubar)
           #_(update-frame-content frame pane 'status)
           (update-frame-content frame pane 'select-repo-message))))))
